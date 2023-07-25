@@ -1,11 +1,169 @@
 ---
 title: "FSRC Data Scientist Exercise - Serge Wiltshire"
-output: html_notebook
+output:
+  html_document:
+    df_print: paged
 ---
+
+```{r set-options, echo=FALSE, cache=FALSE}
+options(width = 150)
+```
 
 *Note:* This document is called an R markdown notebook.  It should provide a nice visual way for me to show the steps I took to complete the exercise, including code, figures, and explanations.  
 
-I began by setting up the basic elements of my workflow.  I created a [Github repository](https://github.com/swiltshire/fsrc_data_sci_exercise) to store the data, code, and output figures I will eventually generate.  I then set up a new project in RStudio and cloned the repository so I can periodically "push" the work I'm doing on my local machine to the Github cloud.  This is especially important for collaborative work, but I find it useful for solo projects as well, since it provides an easy way both back up and share my work, as well as storing a history of changes over time.  I set up a directory structure, my gitignore file, and a scratchpad to experiment with code.  Before going any further, I will perform the "initial commit" to save what I have so far to the repo.
+## Workflow setup
+
+I began by setting up the basic elements of my workflow.  I created a [Github repository](https://github.com/swiltshire/fsrc_data_sci_exercise) to store the data, code, and output figures I will eventually generate.  I then set up a new project in RStudio and cloned the repository so I can periodically "push" the work I'm doing on my local machine to the Github cloud.  This is especially important for collaborative work, but I find it useful for solo projects as well, since it provides an easy way both back up and share my work, as well as storing a history of changes over time.  I set up a directory structure, my gitignore file, and a scratchpad to experiment with code.  Before going any further, I performed the "initial commit" to save this basic structure to the repo.
+
+
+## Exercise 1
+
+### Gathering raw data
+
+The first step is to compile the raw data needed for the analysis.  I pulled up the [USDA NASS quickstats portal](https://quickstats.nass.usda.gov/?source_desc=CENSUS), which allows the user to query and filter the giant database.  I set up a query which filtered data to show only 2017 NASS Census of Agriculture, at the state geographic level.  
+
+Since we are interested in new and beginning farmers, which the [USDA defines](https://www.nass.usda.gov/Publications/Highlights/2020/census-beginning%20-farmers.pdf) as farmers with 10 or fewer years of experience, the first datapoint I was interested in is the primary producer’s “Years on any operation.” I filtered to search only within the demographics sector and producers group.  The census results divide this into three categories: less than 6 years, 6 to 10 years, and 11 or more years.  I downloaded the appropriate 150 records (3 for each state) as a spreadsheet file.  
+
+I am choosing to focus on question 3: *”How does the extent of new and beginning farmers in a state relate to the agricultural production of a state (e.g. yield levels)?*”  So, the next step was to download some data on production by state from the Census.  For this quick analysis, I needed to pick a simple indicator of agricultural production (by farm, in this case).  While many more complex potential indicators are contained in this giant dataset, for example breaking farms down according to bushels of specific products, for this 4-hour exercise I needed a high-level indicator to explore very general trends.  I chose to use average total sales of all agricultural products by farm.  Of course, this could be problematic to some extent since different products are valued differently, but it will serve to illustrate the methodology.  I separately queried the database for total crop sales by state, and total animal sales (including animal products) by state, and downloaded each as a spreadsheet.
+
+Finally, I opened each spreadsheet in Excel and deleted all columns except for state name, data category, and value.  I copied these files into my R project.
+
+
+### Setting up my IDE
+
+With the three raw spreadsheets copied into my R Studio environment, it was time to do some coding.  This R notebook format allows me to show my code in "chunks", with any output following each chunk.  
+
+An initial step in any coding project is to load the required libraries or packages.  In this case, I will be using the *tidyverse*, which includes many useful functions to manipulate and plot data.  I also set up some global options to make the plots look nice.
+
+```{r, results = F}
+rm(list = ls()) # clear environment (good coding practice)
+
+library(tidyverse)
+library(ggthemes)
+library(hrbrthemes)
+ggplot2::theme_set(hrbrthemes::theme_ipsum_rc())
+ggplot2::theme_update(axis.title.x = element_text(size=12),
+                      axis.title.y = element_text(size=12))
+
+```
 
 
 
+### Combining census data
+
+The first goal is to combine the three raw csvs of census data into one a single data structure in R (using a *tibble* here), keeping only the relevant data.  I read in the raw files, specifying formatting for each column.  Then I transformed the data on number of farmers in each of the three experience categories into a single value indicating the percent of farmers in each state with 10 or fewer years of experience.  This required some data manipulation, including recoding, pivoting, and calculating new columns.  Next I merged the crop and animal sales data and calculated total sales.  Finally, I merged the farmer experience and sales data, and calculated average sales per farm.
+
+```{r}
+
+# load raw csvs and set column formatting
+prod_n_yrs <- read.csv("raw_data/2017_census/prod_n_yrs.csv", 
+                       header = T, sep = ",", colClasses=c('character','character','numeric'))
+crop_sales <- read.csv("raw_data/2017_census/crop_sales.csv", 
+                       header = T, sep = ",", colClasses=c('character','numeric'))
+animal_sales <- read.csv("raw_data/2017_census/animal_sales.csv", 
+                         header = T, sep = ",", colClasses=c('character','numeric'))
+
+# manipulate prod_n_yrs to generate new tibble with pct new/beginning farmers by state
+pct_new <- prod_n_yrs %>%
+  mutate(Data.Item = 
+           recode(Data.Item, # recode experience categories so it's easier to read
+                  'PRODUCERS, PRIMARY, YEARS ON ANY OPERATION, LT 6 YEARS - NUMBER OF PRODUCERS' = 'LT_6',
+                  'PRODUCERS, PRIMARY, YEARS ON ANY OPERATION, 6 TO 10 YEARS - NUMBER OF PRODUCERS' = '6_to_10',
+                  'PRODUCERS, PRIMARY, YEARS ON ANY OPERATION, GE 11 YEARS - NUMBER OF PRODUCERS' = 'GE_11')) %>%
+  pivot_wider(names_from = Data.Item, values_from = Value) %>% # pivot wider so all data per state is in one row
+  mutate(n_new = `LT_6` + `6_to_10`, # new/beginning farmers are all those with 10 or fewer years experience
+         n_exp = `GE_11`, # experienced farmers are those with 11 or more years
+         n_total = n_new + n_exp, # total number of farmers is n_new + n_exp
+         pct_new = 100 * n_new / n_total # new/beginning farmer percentage
+  ) %>%
+  select(State, n_total, pct_new) # select only relevant columns
+
+# generate tibble with combined sales by state
+total_sales <- merge(crop_sales, animal_sales, by = 'State') %>%
+  mutate(total_sales = Value.x + Value.y) %>% # total sales = crops + animals
+  select(State, total_sales) # select only relevant columns
+
+# generate tibble with combined census data
+comb_census_data <- merge(pct_new, total_sales, by = 'State') %>%
+  mutate(avg_sales = total_sales / n_total) # average sales per farm
+
+comb_census_data # show table below chunk
+
+```
+
+
+### Plotting census data
+
+As an initial exploration of the data, I opted to produce a couple quick scatter plots to see if there is a visual relationship between the percent of new and beginning farmers in a state, and the average sales in that state.  I used ggplot to produce these rough and ready visualizations.
+
+```{r}
+
+comb_census_data %>%
+  ggplot(aes(x = pct_new, y = avg_sales)) +
+  geom_point()
+
+```
+
+
+```{r}
+
+comb_census_data %>%
+  ggplot(aes(x = pct_new, y = total_sales)) +
+  geom_point()
+
+```
+
+From these quick plots, it appears that there may indeed be some correlation between the percent of new and beginning farmers in a state and sales figures for agricultural products.  This visual correlation appears especially apparent when we plot the average sales per farm against the percent of new and beginning farmers in each state.  To dig into this further, I fit linear models to the data.  I also formatted the plots and labels to be "production ready".
+
+
+```{r}
+
+lm_avg_sales <- lm(pct_new ~ avg_sales, comb_census_data) # run linear regression model on pct_new and avg_sales
+
+# generate text for line formula and r squared value on plot
+plt_txt_avg_sales <- substitute(italic(y) == a + b %.% italic(x)*","~~italic(r)^2~"="~r2, 
+                                list(a = format(unname(coef(lm_avg_sales)[1]), digits = 2),
+                                     b = format(unname(coef(lm_avg_sales)[2]), digits = 2),
+                                     r2 = format(summary(lm_avg_sales)$r.squared, digits = 3)))
+
+# create plot with regression line, formula, and r squared value
+comb_census_data %>%
+  ggplot(aes(x = pct_new, y = avg_sales/1000)) +
+  geom_point() +
+  geom_line(stat = 'smooth', method = 'lm', formula = y ~ x, size = 1, alpha = .6) +
+  geom_text(x = 35, y = 450, label = as.character(as.expression(plt_txt_avg_sales)), parse = T, size = 4) +
+  scale_x_continuous(expand = expansion(mult = c(.01, .01))) +
+  scale_y_continuous(limits = c(-75,650), expand = expansion(mult = c(.01, .01))) +
+  labs(title = "% New farmers vs. average farm sales, by state",
+       x = "% New and beginning farmers",
+       y = "Avg. annual sales per farm ($ \u00D7 1,000)")
+
+```
+
+```{r}
+
+lm_total_sales <- lm(pct_new ~ total_sales, comb_census_data) # run linear regression model on pct_new and avg_sales
+
+# generate text for line formula and r squared value on plot
+plt_txt_total_sales <- substitute(italic(y) == a + b %.% italic(x)*","~~italic(r)^2~"="~r2, 
+                                list(a = format(unname(coef(lm_total_sales)[1]), digits = 2),
+                                     b = format(unname(coef(lm_total_sales)[2]), digits = 2),
+                                     r2 = format(summary(lm_total_sales)$r.squared, digits = 3)))
+
+# create plot with regression line, formula, and r squared value
+comb_census_data %>%
+  ggplot(aes(x = pct_new, y = total_sales/100000000)) +
+  geom_point() +
+  geom_line(stat = 'smooth', method = 'lm', formula = y ~ x, size = 1, alpha = .6) +
+  geom_text(x = 35, y = 375, label = as.character(as.expression(plt_txt_total_sales)), parse = T, size = 4) +
+  scale_x_continuous(expand = expansion(mult = c(.01, .01))) +
+  scale_y_continuous(limits = c(-50,500), expand = expansion(mult = c(.01, .01))) +  
+  labs(title = "% New farmers vs. statewide farm sales",
+       x = "% New and beginning farmers",
+       y = "Annual statewide farm sales ($ \u00D7 100,000,000)")
+
+```
+
+### Discussion
+
+These analyses show that the percent of new and beginning farmers in each state explain almost twenty percent of the variability between states in per-farm sales, and almost ten percent of the variability in total statewide sales.  This means that states with higher percentages of farmers with long-term experience typically generate more cash-flow, both on a statewide and a per-farm basis.  
