@@ -1,0 +1,11 @@
+---
+title: "FSRC Data Scientist Exercise - Serge Wiltshire"
+output: html_notebook
+---
+
+*Note:* This document is called an R markdown notebook.  It should provide a nice visual way for me to show the steps I took to complete the exercise, including code, figures, and explanations.  
+
+I began by setting up the basic elements of my workflow.  I created a [Github repository](https://github.com/swiltshire/fsrc_data_sci_exercise) to store the data, code, and output figures I will eventually generate.  I then set up a new project in RStudio and cloned the repository so I can periodically "push" the work I'm doing on my local machine to the Github cloud.  This is especially important for collaborative work, but I find it useful for solo projects as well, since it provides an easy way both back up and share my work, as well as storing a history of changes over time.  I set up a directory structure, my gitignore file, and a scratchpad to experiment with code.  Before going any further, I will perform the "initial commit" to save what I have so far to the repo.
+
+
+
