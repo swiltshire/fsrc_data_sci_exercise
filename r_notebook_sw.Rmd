@@ -9,7 +9,7 @@ output:
 
 ## Workflow setup
 
-I began by setting up the basic elements of my workflow.  I created a [Github repository](https://github.com/swiltshire/fsrc_data_sci_exercise) to store the data, code, and output figures I will eventually generate.  I then set up a new project in RStudio and cloned the repository so I can periodically "push" the work I'm doing on my local machine to the Github cloud.  This is especially important for collaborative work, but I find it useful for solo projects as well, since it provides an easy way both back up and share my work, as well as storing a history of changes over time.  I set up a directory structure, my gitignore file, and a scratchpad to experiment with code.  Before going any further, I performed the "initial commit" to save this basic structure to the repo.
+I began by setting up the basic elements of my workflow.  I created a [Github repository](https://github.com/swiltshire/fsrc_data_sci_exercise) to store the data, code, and output figures I will eventually generate.  I then set up a new project in RStudio and cloned the repository so I can periodically "push" the work I'm doing on my local machine to the Github cloud.  This is especially important for collaborative work, but I find it useful for solo projects as well, since it provides an easy way to both back up and share my work, as well as storing a history of changes over time.  I set up a directory structure, my gitignore file, and a scratchpad to experiment with code.  Before going any further, I performed the "initial commit" to save this basic structure to the repo.
 
 
 ## Exercise 1
@@ -49,9 +49,9 @@ knitr::opts_chunk$set(echo = T, fig.width = 7, fig.height = 5)
 
 
 
-### Combining census data
+### Merging Census data
 
-The first goal is to combine the three raw csvs of census data into one a single data structure in R (using a *tibble* here), keeping only the relevant data.  I read in the raw files, specifying formatting for each column.  Then I transformed the data on number of farmers in each of the three experience categories into a single value indicating the percent of farmers in each state with 10 or fewer years of experience.  This required some data manipulation, including recoding, pivoting, and calculating new columns.  Next I merged the crop and animal sales data and calculated total sales.  Finally, I merged the farmer experience and sales data, and calculated average sales per farm.
+The first goal was to combine the three raw csvs of census data into one a single data structure in R (using a *tibble* here), keeping only the relevant data.  I read in the raw files, specifying formatting for each column.  Then I transformed the data on number of farmers in each of the three experience categories into a single value indicating the percent of farmers in each state with 10 or fewer years of experience.  This required some data manipulation, including recoding, pivoting, and calculating new columns.  Next I merged the crop and animal sales data and calculated total sales.  Finally, I merged the farmer experience and sales data, and calculated average sales per farm.
 
 ```{r}
 
@@ -86,14 +86,14 @@ total_sales <- merge(crop_sales, animal_sales, by = 'State') %>%
 # generate tibble with combined census data
 comb_census_data <- merge(pct_new, total_sales, by = 'State') %>%
   mutate(avg_sales = total_sales / n_total, # average sales per farm
-         State = str_to_title(State)) # Convert state names from all caps to title case
+         State = str_to_title(State)) # convert state names from all caps to title case
 
 comb_census_data # show table below chunk
 
 ```
 
 
-### Plotting census data
+### Plotting Census data
 
 For an initial exploration of the data, I opted to produce a couple quick scatter plots to see if there is a visual relationship between the percent of new and beginning farmers in a state, and the average sales in that state.  I used ggplot to produce these rough and ready visualizations.
 
@@ -120,16 +120,17 @@ From these quick plots, it appears that there may indeed be some correlation bet
 
 ```{r}
 
-comb_census_data <- comb_census_data %>% mutate(total_sales_bil = total_sales/1000000000) # convert sales data to billions of dollars
+# convert sales data to billions of dollars
+comb_census_data <- comb_census_data %>% mutate(total_sales_bil = total_sales/1000000000)
 
 lm_total_sales <- lm(pct_new ~ total_sales_bil, comb_census_data) # run linear regression model
 
 # generate text for line formula, r squared, and p value on plot
-plt_txt_total_sales <- substitute(italic(y) == a - b %.% italic(x)*","~~italic(r)^2~"="~r2*","~~italic(p)~"="~pv, 
-                                list(a = format(unname(coef(lm_total_sales)[1]), digits = 2),
-                                     b = format(unname(-coef(lm_total_sales)[2]), digits = 2),
-                                     r2 = format(summary(lm_total_sales)$r.squared, digits = 3),
-                                     pv = format(summary(lm_total_sales)$coefficients[2,4], digits = 3)))
+plt_txt_total_sales <- substitute(italic(y) == a - b %.% italic(x)*","~~italic(r)^2~"="~r2*","~~italic(p)~"="~pv,
+                                  list(a = format(unname(coef(lm_total_sales)[1]), digits = 2),
+                                       b = format(unname(-coef(lm_total_sales)[2]), digits = 2),
+                                       r2 = format(summary(lm_total_sales)$r.squared, digits = 3),
+                                       pv = format(summary(lm_total_sales)$coefficients[2,4], digits = 3)))
 
 # create plot with regression line, formula, p, and r squared value
 comb_census_data %>%
@@ -147,7 +148,8 @@ comb_census_data %>%
 
 ```{r}
 
-comb_census_data <- comb_census_data %>% mutate(avg_sales_thou = avg_sales/1000) # convert sales data to thousands of dollars
+# convert sales data to thousands of dollars
+comb_census_data <- comb_census_data %>% mutate(avg_sales_thou = avg_sales/1000)
 
 lm_avg_sales <- lm(pct_new ~ avg_sales_thou, comb_census_data) # run linear regression model
 
@@ -177,7 +179,7 @@ comb_census_data %>%
 
 To tease out spatial trends in the data, I added geographical regions to the dataset.  I used the [US Census Bureau system of regions and divisions](https://www2.census.gov/geo/pdfs/maps-data/maps/reference/us_regdiv.pdf).  Regions are less granular (4 regions total), and divisions more granular (9 regions).  These are displayed in the figure below.  
 
-![](raw_data/us_reg_div_fig.png){width=100%}
+![](ext_figures/us_reg_div_fig.png){width=100%}
 
 I found a [table](https://github.com/cphalpert/census-regions/blob/master/us%20census%20bureau%20regions%20and%20divisions.csv) with these regions and divisions, downloaded it, imported it into my R environment, and merged it with the existing dataset.  
 
@@ -206,7 +208,7 @@ comb_census_data_by_region # show table below chunk
 
 ```
 
-From this analysis, we can see that the Midwest region has the lowest percentage of new and beginning farmers, by far the highest sales per state, and also the highest average sales per farm.  The other three regions have similar average percentages of new and beginning farmers.  The Northeast region has the lowest average sales per farm and by far the lowest average per state, although this makes sense since states are smaller in the Northeast.  
+From this analysis, we can see that the midwest region has the lowest percentage of new and beginning farmers, by far the highest sales per state, and also the highest average sales per farm.  The other three regions have similar average percentages of new and beginning farmers.  The northeast region has the lowest average sales per farm and by far the lowest average per state, although this makes sense since states are smaller in the northeast.  
 
 Next I reproduced the above plot of new and beginning farmers vs. average farm sales, but this time changing the color and shape of scatter points by geospatial region.  I used both color and shape to make the plot readable for colorblind people.
 
@@ -284,13 +286,13 @@ Like the Census data, the first step was to load the ARMS data into my R environ
 ```{r}
 
 arms_data <- read.csv("raw_data/2017_arms/gov_payments.csv", 
-                       header = T, sep = ",", colClasses = c('character','numeric','numeric','numeric'))
+                      header = T, sep = ",", colClasses = c('character','numeric','numeric','numeric'))
 
 ```
 
 ### Merging ARMS and Census data
 
-Next I merged the existing Census data with the ARMS data.  Note that there are only 15 rows in this new dataset, since only 15 states were included in the ARMS survey.  I used the n_payments and n_no_payments columns to calculate a new column for percent of farms receiving payments, and then selected only the relevant columns.  
+Next I merged the existing Census data with the ARMS data.  Note that there are only 15 rows in this new dataset, since only 15 states were included in the ARMS survey.  I used the n_payments and n_no_payments columns to calculate a new column for percent of farms receiving payments, and then selected only the relevant columns.  Note that the payment amounts recorded in the dataset are the average payment among farmers who participated in the programs (not simply the total payment quantity divided by the number of farmers).
 
 ```{r}
 
@@ -326,7 +328,7 @@ comb_arms_census_data %>%
 
 Again, it appears visually that two trends may exist, with states in which a higher percent of farms received government payments typically having more experienced farmers, and states in which average government payments were higher having more new and beginning farmers.
 
-To check these correlations, I ran linear regressions on the data.  I produced similar plots as above, showing trend lines, $r^2$ coefficients, and p values.  I also plotted the geospatial regions in different colors and shapes.  Note that in the ARMS data no Northeast states are represented.  This seems to be a fairly major flaw in the dataset.
+To check these correlations, I ran linear regressions on the data.  I produced similar plots as above, showing trend lines, $r^2$ coefficients, and p values.  I also plotted the geospatial regions in different colors and shapes.  Note that in the ARMS data no northeast states are represented.  This seems to be a fairly major flaw in the dataset.
 
 ```{r}
 
@@ -334,10 +336,10 @@ lm_pct_gov_pay <- lm(pct_new ~ pct_gov_pay, comb_arms_census_data) # run linear 
 
 # generate text for line formula, r squared, and p value on plot
 plt_txt_pct_gov_pay <- substitute(italic(y) == a - b %.% italic(x)*","~~italic(r)^2~"="~r2*","~~italic(p)~"="~pv, 
-                                list(a = format(unname(coef(lm_pct_gov_pay)[1]), digits = 2),
-                                     b = format(unname(-coef(lm_pct_gov_pay)[2]), digits = 2),
-                                     r2 = format(summary(lm_pct_gov_pay)$r.squared, digits = 3),
-                                     pv = format(summary(lm_pct_gov_pay)$coefficients[2,4], digits = 3)))
+                                  list(a = format(unname(coef(lm_pct_gov_pay)[1]), digits = 2),
+                                       b = format(unname(-coef(lm_pct_gov_pay)[2]), digits = 2),
+                                       r2 = format(summary(lm_pct_gov_pay)$r.squared, digits = 3),
+                                       pv = format(summary(lm_pct_gov_pay)$coefficients[2,4], digits = 3)))
 
 # create plot with regression line, formula, p, and r squared value
 comb_arms_census_data %>%
@@ -363,10 +365,10 @@ lm_avg_gov_pay <- lm(pct_new ~ avg_gov_pay_thou, comb_arms_census_data) # run li
 
 # generate text for line formula, r squared, and p value on plot
 plt_txt_avg_gov_pay<- substitute(italic(y) == a - b %.% italic(x)*","~~italic(r)^2~"="~r2*","~~italic(p)~"="~pv, 
-                                list(a = format(unname(coef(lm_avg_gov_pay)[1]), digits = 2),
-                                     b = format(unname(-coef(lm_avg_gov_pay)[2]), digits = 2),
-                                     r2 = format(summary(lm_avg_gov_pay)$r.squared, digits = 3),
-                                     pv = format(summary(lm_avg_gov_pay)$coefficients[2,4], digits = 3)))
+                                 list(a = format(unname(coef(lm_avg_gov_pay)[1]), digits = 2),
+                                      b = format(unname(-coef(lm_avg_gov_pay)[2]), digits = 2),
+                                      r2 = format(summary(lm_avg_gov_pay)$r.squared, digits = 3),
+                                      pv = format(summary(lm_avg_gov_pay)$coefficients[2,4], digits = 3)))
 
 # create plot with regression line, formula, p, and r squared value
 comb_arms_census_data %>%
@@ -383,12 +385,12 @@ comb_arms_census_data %>%
 
 ```
 
-These analyses show that, indeed, there are statistically significant trends in the data in both cases.  The percent of farmers receiving government payments explains over 60% of the variability in the percent of farmers receiving government payments by state.  Further, the percent of new farmers explains almost 30% of the variability in the average payment amount (among farmers receiving payments).  
+These analyses show that, indeed, there are statistically significant trends in the data in both cases.  The percent of new farmers explains over 60% of the variability in the percent of farmers receiving government payments by state.  Further, the percent of new farmers explains almost 30% of the variability in the average payment amount (among farmers receiving payments).  Additionally, as above, we see strong clustering by region.  
 
 
 ### GIS plots
 
-Since we have discovered spatial clustering in the data, I thought it would be informative to plot the data on a map.  I first needed to output the data from R in a format that can be loaded into GIS software.  I will output two files here, one for just the Census data (which includes all 50 states), and the other with the combined ARMS and Census data.
+Since we have discovered spatial clustering in the data, I thought it would be informative to plot the data on a series of maps.  I first needed to output the data from R in a format that can be loaded into GIS software.  I created two files, one for just the Census data (which includes all 50 states), and the other with the combined ARMS and Census data.
 
 ```{r}
 
@@ -406,11 +408,11 @@ To create the figures, I used QGIS (an open source alternative to ESRI ArcGIS). 
 
 ### Discussion
 
-The data show that states in the ARMS survey in which there is a higher proportion of farms receiving government payments typically had fewer new and beginning farmers.  These states are clustered in the midwest region.  For a more complete analysis it would be important to examine the types of crops and animal products these farms are producing (which may receive different levels and mechanisms of government payments).  However, we do know that it is often easier for large-scale farms producing primarily a single product (eg. feed corn) to apply for and receive government payments than smaller, more diversified operations.  Further, there may be a gap in knowledge of government programs among newer farmers.
+The data show that states in the ARMS survey in which there is a higher proportion of farms receiving government payments typically have fewer new and beginning farmers.  These states are clustered in the midwest region.  For a more complete analysis it would be important to examine the types of crops and animal products these farms are producing (which may receive different levels and mechanisms of government payments).  However, we do know that it is often easier for large-scale farms producing primarily a single product (eg. feed corn) to apply for and receive government payments than smaller, more diversified operations.  Further, there may be a gap in knowledge of government programs among newer farmers.
 
-However, despite fewer farmers receiving payments in states with higher numbers of beginning farmers, the payments received by those participating in these government programs are actually higher in these states.  This suggests that government payment programs in which new and beginning farmers typically participate can be quite generous.  Again, this suggests that these government programs do represent an effective solution to help beginning farmers survive their first ten seasons, but that perhaps more outreach through extension services and other mechanisms is needed to better inform new farmers about these opportunities.  
+However, despite fewer farmers receiving payments in states with higher numbers of beginning farmers, the payments received by those participating in these government programs are actually higher in these states.  This suggests that government payment programs in which new and beginning farmers typically participate can be quite generous.  These government programs may represent an effective solution to help beginning farmers survive their first ten seasons, but that perhaps more outreach through extension services and other mechanisms is needed to better inform new farmers about these opportunities.  
 
-Exploring the data spatially, we find that the midwest region stands out in several important ways.  Overall, the midwest has relatively few new and beginning farmers.  Revenues per farm are typically higher than the national average.  In these states, the majority of farmers receive some form of government payments, which is not the case for the rest of the country.  However, the amount payed out to each farm in most midwest these states is relatively modest.  An exception to this is Arkansas, in which government payments are the highest out of the states represented in the ARMS survey data.  Exploring why Arkansas farmers receive higher payments would be a very interesting avenue for future research.  
+Exploring the data spatially, we find that the midwest region stands out in several important ways.  Overall, the midwest has relatively few new and beginning farmers.  Revenues per farm are typically higher than the national average.  In these states, the majority of farmers receive some form of government payments, which is not the case for the rest of the country.  However, the amount payed out to each farm in most midwest these states is relatively modest.  An exception to this is Arkansas, in which government payments are the highest out of all the states represented in the ARMS survey data.  Exploring why Arkansas farmers receive higher payments would be a very interesting avenue for future research.  
 
-Overall, this excercise has provided an interesting glimpse into the connections between years of farmer experience, farm sales, and government payments.  We have shown several statistically-significant trends in the data which link these factors in interesting ways.  We have also shown how these outcomes cluster spatially by region, likely due to the primary types and methods of agriculture practiced in each region, climate variability between regions, and socio-historical factors like traditions of multi-generational farming.  In some ways this analysis has posed more questions than it has answered, but I suppose that is the nature of complex social-ecological systems.  I look forward to digging deeper into these types of data-driven analyses going forward if I am offered the Data Scientist position with the FSRC.  Thank you for your time!  It's been a fun exercise.
+Overall, this excercise has provided an interesting glimpse into the connections between years of farmer experience, farm sales, and government payments.  I have shown several statistically-significant trends in the data which link these factors in complex ways.  I have also shown how these outcomes cluster spatially by region, likely due to the primary types and methods of agriculture practiced in each region, climate variability between regions, and socio-historical factors like traditions of multi-generational farming.  In some ways this analysis has posed more questions than it has answered, but I suppose that is the nature of complex social-ecological systems.  I look forward to digging deeper into these types of data-driven analyses going forward if I am offered the Data Scientist position with the FSRC.  Thank you for your time!  It's been a fun exercise.
 
